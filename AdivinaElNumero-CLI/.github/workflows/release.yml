@@ -1,0 +1,86 @@
+name: Build & Release AdivinaElNumero-CLI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build_and_release:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      packages: write
+      # token used for gh-release
+      id-token: write
+
+    steps:
+      - name: Checkout repository (fetch tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller pytest
+
+      - name: Show Python & pip info (debug)
+        run: |
+          python --version
+          python -m pip --version
+          python -m PyInstaller --version || echo "PyInstaller no instalado aún"
+
+      - name: Run tests
+        run: |
+          pytest --maxfail=1 --disable-warnings -q
+
+      - name: Build executable (PyInstaller)
+        run: |
+          python -m PyInstaller --onefile --name adivina --console src/main.py
+
+      - name: List build output (debug)
+        run: |
+          echo "Files in dist:"
+          dir /b /s dist || echo "no dist folder"
+
+      - name: Install Inno Setup (Chocolatey)
+        # choco is available on windows-latest images; this will run elevated.
+        run: |
+          choco install innosetup --yes
+        shell: cmd
+
+      - name: Build installer (Inno Setup)
+        # Ajusta working-directory si tu .iss está en otra ruta
+        working-directory: installer
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" adivina.iss
+        shell: cmd
+
+      - name: List installer output (debug)
+        run: |
+          echo "Installer output listing:"
+          dir /b /s installer\Output || (echo "No installer output found" & exit 1)
+        shell: cmd
+
+      - name: Compute SHA-256 (PowerShell)
+        shell: powershell
+        run: |
+          $exe = Resolve-Path installer\Output\AdivinaElNumero-Setup.exe
+          if (-not (Test-Path $exe)) { throw "Installer not found at $exe" }
+          $hash = Get-FileHash $exe -Algorithm SHA256
+          "{0}  {1}" -f $hash.Hash, $hash.Path | Out-File -Encoding ASCII installer\Output\AdivinaElNumero-Setup.exe.sha256.txt
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installer/Output/AdivinaElNumero-Setup.exe
+            installer/Output/AdivinaElNumero-Setup.exe.sha256.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

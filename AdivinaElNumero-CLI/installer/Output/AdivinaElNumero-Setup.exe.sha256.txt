@@ -1,0 +1,5 @@
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          E832E9F9D0F1BD8145C2BF54863CC8F8CD52D2BCF38E9931586F283B10B64A45       C:\Users\maxdu\Documents\Trabajos clases\Sistema operativo\Empaquetado e instalación multiplataforma de un al…
+

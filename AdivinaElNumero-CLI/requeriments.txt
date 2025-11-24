@@ -1,0 +1,2 @@
+# Solo librerías estándar de Python.
+# No se requieren dependencias externas.
